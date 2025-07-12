@@ -1,0 +1,7 @@
+tiktoken
+openai
+supabase
+fastapi
+uvicorn
+python-dotenv
+requests
