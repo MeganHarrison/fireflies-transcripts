@@ -81,6 +81,8 @@ class FirefliesClient:
                 sentences {
                     text
                     speaker_id
+                    start_time
+                    end_time
                 }
                 summary {
                     keywords
@@ -88,6 +90,7 @@ class FirefliesClient:
                     outline
                     shorthand_bullet
                     overview
+                    notes
                 }
             }
         }
@@ -197,6 +200,8 @@ class ChunkingStrategy:
             "text": "",
             "sentences": [],
             "speakers": set(),
+            "start_time": None,
+            "end_time": None,
             "tokens": 0
         }
         
@@ -215,6 +220,8 @@ class ChunkingStrategy:
                     "text": overlap_text,
                     "sentences": [],
                     "speakers": set(),
+                    "start_time": group[0].get("start_time", 0),
+                    "end_time": None,
                     "tokens": len(self.tokenizer.encode(overlap_text))
                 }
             
@@ -222,6 +229,9 @@ class ChunkingStrategy:
             current_chunk["text"] += group_text + "\n"
             current_chunk["sentences"].extend(group)
             current_chunk["speakers"].update(s.get("speaker_id", 0) for s in group)
+            if current_chunk["start_time"] is None:
+                current_chunk["start_time"] = group[0].get("start_time", 0)
+            current_chunk["end_time"] = group[-1].get("end_time", 0)
             current_chunk["tokens"] += group_tokens
         
         # Don't forget the last chunk
@@ -232,21 +242,24 @@ class ChunkingStrategy:
         return self._enrich_chunks(chunks, transcript)
     
     def _group_by_semantics(self, sentences: List[Dict]) -> List[List[Dict]]:
-        """Group sentences by speaker changes"""
+        """Group sentences by speaker and temporal proximity"""
         groups = []
         current_group = []
         last_speaker = None
+        last_time = 0
         
         for sentence in sentences:
             speaker = sentence.get("speaker_id", 0)
+            start_time = sentence.get("start_time", 0)
             
-            # New group if speaker changes
-            if speaker != last_speaker and current_group:
+            # New group if speaker changes or large time gap (>5 seconds)
+            if (speaker != last_speaker or start_time - last_time > 5000) and current_group:
                 groups.append(current_group)
                 current_group = []
             
             current_group.append(sentence)
             last_speaker = speaker
+            last_time = sentence.get("end_time", start_time)
         
         if current_group:
             groups.append(current_group)
@@ -282,6 +295,8 @@ class ChunkingStrategy:
             "index": index,
             "text": chunk["text"].strip(),
             "speakers": list(chunk["speakers"]),
+            "start_time": chunk["start_time"],
+            "end_time": chunk["end_time"],
             "token_count": chunk["tokens"]
         }
     
@@ -419,7 +434,7 @@ class SupabaseUploader:
             "date": meeting_date.isoformat(),
             "transcript_url": transcript.get("transcript_url"),
             "participants": participants,
-            "duration_minutes": int(transcript.get("duration", 0)),
+            "duration_minutes": transcript.get("duration", 0),
             "word_count": word_count,
             "speaker_count": speaker_count,
             "raw_metadata": {
@@ -656,6 +671,47 @@ class SyncPipeline:
         logger.info(f"Sync complete! Successfully synced {success_count}/{len(new_transcripts)} transcripts")
         return success_count
     
+    def sync_batch(self, batch_size: int):
+        """Sync a limited batch of transcripts from Fireflies"""
+        
+        logger.info(f"Starting batch sync of {batch_size} transcripts...")
+        
+        # Get all transcript IDs
+        all_transcripts = self.fireflies.fetch_all_transcripts_paginated()
+        logger.info(f"Found {len(all_transcripts)} total transcripts")
+        
+        # Check which ones are already synced
+        existing_ids = self._get_existing_transcript_ids()
+        logger.info(f"Found {len(existing_ids)} already synced")
+        
+        # Filter new ones and limit to batch size
+        new_transcripts = [
+            t for t in all_transcripts 
+            if t['id'] not in existing_ids
+        ][:batch_size]  # Limit to batch size
+        
+        logger.info(f"Processing batch of {len(new_transcripts)} new transcripts")
+        
+        # Sync the batch
+        success_count = 0
+        for i, transcript_summary in enumerate(new_transcripts):
+            logger.info(f"Processing {i+1}/{len(new_transcripts)}: {transcript_summary['title']}")
+            
+            try:
+                # Fetch full transcript
+                full_transcript = self.fireflies.fetch_transcript(transcript_summary['id'])
+                if full_transcript and self.uploader.process_transcript(full_transcript):
+                    success_count += 1
+                
+                # Rate limiting - slower for small batches
+                time.sleep(3)  # 3 second delay between requests
+                    
+            except Exception as e:
+                logger.error(f"Error syncing {transcript_summary['id']}: {e}")
+        
+        logger.info(f"Batch sync complete! Successfully synced {success_count}/{len(new_transcripts)} transcripts")
+        return success_count
+    
     def _get_existing_transcript_ids(self) -> set:
         """Get set of already synced transcript IDs"""
         try:
@@ -685,10 +741,10 @@ class SyncPipeline:
 # CLI interface
 if __name__ == "__main__":
     import argparse
-    import requests  # Add this import for the test mode
     
     parser = argparse.ArgumentParser(description='Optimized Fireflies to Supabase sync pipeline')
     parser.add_argument('--sync-all', action='store_true', help='Sync all transcripts')
+    parser.add_argument('--sync-batch', type=int, help='Sync a limited batch of transcripts (specify number)')
     parser.add_argument('--sync-id', type=str, help='Sync a specific transcript by ID')
     parser.add_argument('--test', action='store_true', help='Test the pipeline with one transcript')
     
@@ -698,49 +754,23 @@ if __name__ == "__main__":
     
     if args.sync_all:
         pipeline.sync_all()
+    elif args.sync_batch:
+        pipeline.sync_batch(args.sync_batch)
     elif args.sync_id:
         success = pipeline.sync_transcript(args.sync_id)
         print(f"Sync {'successful' if success else 'failed'} for transcript {args.sync_id}")
     elif args.test:
-        # Test with fetching just ONE transcript
+        # Test with fetching one transcript
         client = FirefliesClient()
-        # Modified to only fetch 1 transcript for testing
-        query = """
-        query GetTranscripts($limit: Int) {
-            transcripts(limit: $limit) {
-                id
-                title
-                date
-                duration
-            }
-        }
-        """
-        
-        try:
-            response = requests.post(
-                client.base_url,
-                headers=client.headers,
-                json={"query": query, "variables": {"limit": 1}}
-            )
-            response.raise_for_status()
-            data = response.json()
-            
-            if "data" in data and data["data"]["transcripts"]:
-                test_transcript = data["data"]["transcripts"][0]
-                test_id = test_transcript['id']
-                print(f"\n🧪 TEST MODE - Processing one transcript")
-                print(f"   Title: {test_transcript['title']}")
-                print(f"   ID: {test_id}")
-                print(f"   Duration: {test_transcript.get('duration', 0)} minutes\n")
-                
-                success = pipeline.sync_transcript(test_id)
-                print(f"\n✅ Test {'PASSED' if success else 'FAILED'}")
-                if not success:
-                    print("   This transcript may already be synced. Try --sync-all for new transcripts.")
-            else:
-                print("❌ No transcripts found for testing")
-        except Exception as e:
-            print(f"❌ Test failed with error: {e}")
+        transcripts = client.fetch_all_transcripts_paginated(batch_size=1)
+        if transcripts:
+            test_id = transcripts[0]['id']
+            print(f"Testing with transcript: {test_id}")
+            success = pipeline.sync_transcript(test_id)
+            print(f"Test {'passed' if success else 'failed'}")
+        else:
+            print("No transcripts found for testing")
     else:
         print("Use --sync-all to sync all transcripts, or --sync-id <id> to sync a specific one")
+        print("Use --sync-batch <number> to sync a limited batch of transcripts")
         print("Use --test to test the pipeline with one transcript")
