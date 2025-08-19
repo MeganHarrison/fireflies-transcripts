@@ -1,0 +1,44 @@
+name = "ai-agent-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+ENVIRONMENT = "development"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "alleato"
+database_id = "fc7c9a6d-ca65-4768-b3f9-07ec5afb38c5"
+
+# AI binding for embeddings and inference
+[ai]
+binding = "AI"
+
+# Vectorize index for similarity search
+[[vectorize]]
+binding = "VECTOR_INDEX"
+index_name = "fireflies-transcripts"
+
+# KV for session management and caching
+[[kv_namespaces]]
+binding = "CHAT_SESSIONS"
+id = "811df9ff556f42f7a55e59086113db17"
+
+[[kv_namespaces]]
+binding = "RESPONSE_CACHE"
+id = "da8f86e5838b463e9ca51a609e17918f"
+
+# Analytics for tracking usage
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+dataset = "ai_agent_analytics"
+
+# Environment specific configurations
+[env.production]
+name = "ai-agent-worker"
+vars = { ENVIRONMENT = "production" }
+
+[env.staging]
+name = "ai-agent-worker-staging"
+vars = { ENVIRONMENT = "staging" }

@@ -1,0 +1,33 @@
+{
+  "name": "alleato-elements-workers",
+  "version": "1.0.0",
+  "description": "Cloudflare Workers for Alleato AI Elements backend infrastructure",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && cd ai-agent-worker && npm install && cd ../fireflies-ingest-worker && npm install && cd ../vectorize-worker && npm install",
+    "dev:ai-agent": "cd ai-agent-worker && wrangler dev --port 8788",
+    "dev:fireflies": "cd fireflies-ingest-worker && wrangler dev --port 8789", 
+    "dev:vectorize": "cd vectorize-worker && wrangler dev --port 8790",
+    "dev:insights": "cd insights-worker && wrangler dev --port 8791",
+    "deploy:ai-agent": "cd ai-agent-worker && wrangler deploy",
+    "deploy:fireflies": "cd fireflies-ingest-worker && wrangler deploy",
+    "deploy:vectorize": "cd vectorize-worker && wrangler deploy",
+    "deploy:insights": "cd insights-worker && wrangler deploy",
+    "deploy:all": "npm run deploy:ai-agent && npm run deploy:fireflies && npm run deploy:vectorize && npm run deploy:insights",
+    "lint": "echo 'Linting all workers...' && cd ai-agent-worker && npm run lint && cd ../fireflies-ingest-worker && npm run lint && cd ../vectorize-worker && npm run lint",
+    "typecheck": "echo 'Type checking all workers...' && cd ai-agent-worker && npm run typecheck && cd ../fireflies-ingest-worker && npm run typecheck && cd ../vectorize-worker && npm run typecheck"
+  },
+  "devDependencies": {
+    "wrangler": "^4.30.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "keywords": [
+    "cloudflare-workers",
+    "ai",
+    "rag",
+    "embeddings",
+    "transcript-processing"
+  ]
+}

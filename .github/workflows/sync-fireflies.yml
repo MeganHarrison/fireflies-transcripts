@@ -1,0 +1,102 @@
+name: Sync Fireflies Transcripts
+
+on:
+  # Run on schedule
+  schedule:
+    # Run every 6 hours
+    - cron: '0 */6 * * *'
+  
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      sync_mode:
+        description: 'Sync mode'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - test
+          - specific
+      transcript_id:
+        description: 'Transcript ID (only for specific mode)'
+        required: false
+        type: string
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install numpy tiktoken
+    
+    - name: Run sync (scheduled)
+      if: github.event_name == 'schedule'
+      env:
+        FIREFLIES_API_KEY: ${{ secrets.FIREFLIES_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      run: |
+        python scripts/sync/optimized_pipeline.py --sync-all
+    
+    - name: Run sync (manual - all)
+      if: github.event_name == 'workflow_dispatch' && inputs.sync_mode == 'all'
+      env:
+        FIREFLIES_API_KEY: ${{ secrets.FIREFLIES_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      run: |
+        python scripts/sync/optimized_pipeline.py --sync-all
+    
+    - name: Run sync (manual - test)
+      if: github.event_name == 'workflow_dispatch' && inputs.sync_mode == 'test'
+      env:
+        FIREFLIES_API_KEY: ${{ secrets.FIREFLIES_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      run: |
+        python scripts/sync/optimized_pipeline.py --test
+    
+    - name: Run sync (manual - specific)
+      if: github.event_name == 'workflow_dispatch' && inputs.sync_mode == 'specific'
+      env:
+        FIREFLIES_API_KEY: ${{ secrets.FIREFLIES_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      run: |
+        python scripts/sync/optimized_pipeline.py --sync-id "${{ inputs.transcript_id }}"
+    
+    - name: Upload logs
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: sync-logs
+        path: |
+          *.log
+          transcripts/
+        retention-days: 7

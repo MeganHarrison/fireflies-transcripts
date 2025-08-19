@@ -1,0 +1,19 @@
+{
+  "name": "fireflies-ingest-worker",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker for syncing Fireflies transcripts",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "dependencies": {
+    "@cloudflare/workers-types": "^4.20240117.0",
+    "hono": "^4.0.0"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0",
+    "typescript": "^5.0.0"
+  }
+}

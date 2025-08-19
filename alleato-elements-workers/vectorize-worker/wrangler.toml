@@ -1,0 +1,41 @@
+name = "vectorize-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+ENVIRONMENT = "development"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "alleato"
+database_id = "fc7c9a6d-ca65-4768-b3f9-07ec5afb38c5"
+
+# R2 Storage for reading transcripts
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "alleato-files"
+
+# AI binding for embeddings
+[ai]
+binding = "AI"
+
+# Vectorize index for vector search
+[[vectorize]]
+binding = "VECTOR_INDEX"
+index_name = "fireflies-transcripts"
+
+# Queue consumer for processing tasks
+[[queues.consumers]]
+queue = "transcript-processing"
+max_batch_size = 10
+max_batch_timeout = 30
+
+# Environment specific configurations
+[env.production]
+name = "vectorize-worker"
+vars = { ENVIRONMENT = "production" }
+
+[env.staging]
+name = "vectorize-worker-staging"
+vars = { ENVIRONMENT = "staging" }

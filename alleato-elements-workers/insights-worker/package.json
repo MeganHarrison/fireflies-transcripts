@@ -1,0 +1,23 @@
+{
+  "name": "insights-worker",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker for generating meeting insights and analytics",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev --port 8791",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:production": "wrangler deploy --env production",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo 'Linting not configured yet'"
+  },
+  "dependencies": {
+    "@cloudflare/ai": "^1.0.63",
+    "hono": "^4.5.11"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240512.0",
+    "typescript": "^5.0.0",
+    "wrangler": "^4.30.0"
+  }
+}

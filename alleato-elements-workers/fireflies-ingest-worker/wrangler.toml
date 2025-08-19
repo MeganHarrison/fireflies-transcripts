@@ -1,0 +1,44 @@
+name = "fireflies-ingest-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+ENVIRONMENT = "development"
+FIREFLIES_API_URL = "https://api.fireflies.ai/graphql"
+
+# Secrets (set via: wrangler secret put FIREFLIES_API_KEY)
+# FIREFLIES_API_KEY = "" # Set this as a secret, not in vars
+
+# Scheduled trigger for periodic sync
+[triggers]
+crons = ["*/30 * * * *"] # Every 30 minutes
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "alleato"
+database_id = "fc7c9a6d-ca65-4768-b3f9-07ec5afb38c5"
+
+# R2 Storage for transcript files
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "alleato-files"
+
+# KV for caching and state management
+[[kv_namespaces]]
+binding = "SYNC_STATE"
+id = "0b9c6a2ff7094d5291074f855cd7b997"
+
+# Queue for processing tasks
+[[queues.producers]]
+queue = "transcript-processing"
+binding = "PROCESSING_QUEUE"
+
+# Environment specific configurations
+[env.production]
+name = "fireflies-ingest-worker"
+vars = { ENVIRONMENT = "production" }
+
+[env.staging]
+name = "fireflies-ingest-worker-staging"
+vars = { ENVIRONMENT = "staging" }

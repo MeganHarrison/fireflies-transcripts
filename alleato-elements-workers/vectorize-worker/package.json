@@ -1,0 +1,22 @@
+{
+  "name": "vectorize-worker",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker for vectorizing transcripts and linking to projects",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^2.0.15",
+    "@cloudflare/ai": "^1.0.0",
+    "@cloudflare/workers-types": "^4.20240117.0",
+    "base64-js": "^1.5.1",
+    "hono": "^4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "wrangler": "^3.0.0"
+  }
+}

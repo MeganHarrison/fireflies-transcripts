@@ -1,0 +1,22 @@
+{
+  "name": "ai-agent-worker",
+  "version": "1.0.0",
+  "description": "AI Agent Chat Worker for Project Manager + Business Strategist",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "dependencies": {
+    "@cloudflare/ai": "^1.0.0",
+    "@cloudflare/workers-types": "^4.20240117.0",
+    "base64-js": "^1.5.1",
+    "hono": "^4.0.0",
+    "openai": "^4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "wrangler": "^3.0.0"
+  }
+}
